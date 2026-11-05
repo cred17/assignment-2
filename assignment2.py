@@ -19,6 +19,7 @@ from folium.plugins import HeatMap, MarkerCluster
 import json
 import xyzservices.providers as xyz
 
+map_obj = folium.Map(location=[25.7953, -80.2901], zoom_start=13)
 
 def parse_coordinate_string(coord_str):
     """Parse coordinate string into list of [lat, lon] pairs."""
@@ -76,8 +77,58 @@ def add_markers(map_obj, df_markers, use_cluster=True):
         marker_cluster.add_to(map_obj)
 
 
+line_coordinates = [
+    [25.7953, -80.2901], 
+    [25.7950, -80.2867]
+]
+
 def add_lines(map_obj, df_lines):
-    pass
+   if df_lines is None or df_lines.empty:
+        return
+    
+    folium.PolyLine(
+    locations=line_coordinates,
+    color="blue",
+    weight=3,
+    opacity=0.7,
+    popup="Sample Line"
+).add_to(map_obj)
+
+
+def add_lines(map_obj, df_lines):
+    """Add lines from the Excel lines worksheet to the map."""
+
+    if df_lines is None or df_lines.empty:
+        print("No line data found.")
+        return
+
+    for _, row in df_lines.iterrows():
+
+        # Extract coordinates from Excel
+        coordinates = parse_coordinate_string(row.get('coordinates'))
+
+        # Make sure at least two coordinates exist
+        if len(coordinates) < 2:
+            print(f"Skipping line: {row.get('name', 'Unnamed')} - insufficient coordinates")
+            continue
+
+        # Get line properties from Excel
+        line_color = row.get('color', 'blue')
+        line_weight = row.get('weight', 3)
+        line_opacity = row.get('opacity', 0.7)
+        line_name = row.get('name', 'Sample Line')
+
+        # Create the PolyLine
+        folium.PolyLine(
+            locations=coordinates,
+            color=line_color,
+            weight=float(line_weight),
+            opacity=float(line_opacity),
+            popup=line_name,
+            tooltip=line_name
+        ).add_to(m)
+
+        print(f"Added line: {line_name}")
 
 
 def add_polygons(map_obj, df_polygons):
@@ -97,7 +148,7 @@ def add_polygons(map_obj, df_polygons):
                 fill_color=row.get('fill_color', row.get('color', 'lightblue')),
                 fill_opacity=row.get('fill_opacity', 0.4),
                 weight=row.get('weight', 2)
-            ).add_to(map_obj)
+            ).add_to(m)
 
 
 def add_heatmap(map_obj, df_heatmap):
@@ -136,7 +187,7 @@ def add_circles(map_obj, df_circles):
                 fill_color=row.get('fill_color', row.get('color', 'lightblue')),
                 fill_opacity=row.get('fill_opacity', 0.4),
                 weight=row.get('weight', 2)
-            ).add_to(map_obj)
+            ).add_to(m)
 
 
 def create_map_from_excel(excel_file, output_file='map.html',
@@ -168,6 +219,7 @@ def create_map_from_excel(excel_file, output_file='map.html',
     df_polygons = excel_data.get('polygons')
     df_heatmap = excel_data.get('heatmap')
     df_circles = excel_data.get('circles')
+    df_lines = excel_data.get('lines')
 
     # Calculate map center if not provided
     if center_lat is None or center_lon is None:
@@ -195,9 +247,9 @@ def create_map_from_excel(excel_file, output_file='map.html',
     )
 
     # Add different tile layers (Esri canvas tiles don't require an API key)
-    folium.TileLayer(xyz.Esri.WorldGrayCanvas, name='Light Mode').add_to(m)
+    folium.TileLayer(xyz.Esri.WorldGrayCanvas, name='Light Mode').add_to(map_obj)
     folium.TileLayer(xyz.Esri.WorldGrayCanvas(variant='Canvas/World_Dark_Gray_Base'),
-                     name='Dark Mode').add_to(m)
+                     name='Dark Mode').add_to(map_obj)
 
     # Add map elements from each tab
     print("Adding markers...")
@@ -211,6 +263,9 @@ def create_map_from_excel(excel_file, output_file='map.html',
 
     print("Adding heatmap...")
     add_heatmap(m, df_heatmap)
+
+    print("Adding lines...")
+    add_lines(m, df_lines)
 
     # Add layer control
     folium.LayerControl().add_to(m)
