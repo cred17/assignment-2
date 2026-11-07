@@ -103,8 +103,6 @@ def add_lines(map_obj, df_lines):
         return
 
     for _, row in df_lines.iterrows():
-
-        # Extract coordinates from Excel
         coordinates = parse_coordinate_string(row.get('coordinates'))
 
         # Make sure at least two coordinates exist
